@@ -1,5 +1,5 @@
 /* Bumpar VERSION a cada release que o iPad precisa ver. */
-const VERSION = 'v0.2.5';
+const VERSION = 'v0.2.6';
 const CACHE = 'cabacitos-mpc-' + VERSION;
 const FILES = [
   './', './index.html', './manifest.json', './icon.svg',

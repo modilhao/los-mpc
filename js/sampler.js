@@ -20,7 +20,7 @@ for (let b = 0; b < NBANKS; b++) banks.push(new Array(NPADS).fill(null));
 const active = [];                  // vozes soando, mais antiga primeiro
 let seq = 0;
 
-const newPad = (sampleId) => ({ sampleId, start: 0, end: 1, pitch: 0, level: 0.85 });
+const newPad = (sampleId) => ({ sampleId, start: 0, end: 1, pitch: 0, level: 1 });
 
 /* ---------- samples ---------- */
 export function addSample(name, data, sr, persist = true) {

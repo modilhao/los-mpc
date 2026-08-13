@@ -36,17 +36,26 @@ export function startAudio() {
 
   master = ctx.createGain();
   busIn = ctx.createGain();
-  busIn.connect(master).connect(comp).connect(analyser).connect(ctx.destination);
+  /* Makeup depois do compressor: sem isso a cadeia fica bem abaixo
+     do nível do arquivo original (ratio 5 no threshold -10 come ~6–10 dB). */
+  const makeup = ctx.createGain();
+  makeup.gain.value = 2.2;
+  busIn.connect(master).connect(comp).connect(makeup).connect(analyser).connect(ctx.destination);
 
-  if (navigator.audioSession) {
-    try { navigator.audioSession.type = 'play-and-record'; } catch (e) { /* iOS < 17 */ }
-  }
+  /* playback = nível cheio nos pads. play-and-record só enquanto o mic
+     estiver aberto — no iOS ele abafa a saída. */
+  setAudioSession('playback');
 
   ctx.addEventListener('statechange', () => {
     if (ctx.state !== 'running' && document.visibilityState === 'visible') ensureAudioRunning();
   });
   requestWake();
   return ctx;
+}
+
+function setAudioSession(type) {
+  if (!navigator.audioSession) return;
+  try { navigator.audioSession.type = type; } catch (e) { /* iOS < 17 */ }
 }
 
 export function setMasterVolume(v) {
@@ -123,6 +132,7 @@ export async function openMic() {
   startAudio();
 
   if (!micStream) {
+    setAudioSession('play-and-record');
     micStream = await getMicStream();
     const el = document.getElementById('micKeep');
     if (el) {
@@ -140,6 +150,7 @@ export async function openMic() {
   }
 
   await ensureAudioRunning();
+  setAudioSession('play-and-record');
   return ctx.state === 'running' ? 'ok' : 'suspenso';
 }
 
@@ -206,6 +217,7 @@ export function cancelCapture() {
   if (!c) return;
   if (c.raf) cancelAnimationFrame(c.raf);
   if (c.timer) clearTimeout(c.timer);
+  setAudioSession('playback');
   if (c.recorder && c.recorder.state !== 'inactive') {
     c.recorder.ondataavailable = null;
     c.recorder.onerror = null;
@@ -218,12 +230,26 @@ export function stopCapture() { if (cap) finishCapture(); }
 
 export const isCapturing = () => !!cap;
 
+function normalizePeak(data, target = 0.95) {
+  let peak = 0;
+  for (let i = 0; i < data.length; i++) {
+    const a = Math.abs(data[i]);
+    if (a > peak) peak = a;
+  }
+  if (peak < 1e-5 || peak >= target) return data;
+  const g = target / peak;
+  const out = new Float32Array(data.length);
+  for (let i = 0; i < data.length; i++) out[i] = data[i] * g;
+  return out;
+}
+
 function finishCapture(errMsg) {
   const c = cap;
   if (!c) return;
   cap = null;
   if (c.raf) cancelAnimationFrame(c.raf);
   if (c.timer) clearTimeout(c.timer);
+  setAudioSession('playback');
 
   const fail = (msg) => c.onDone(null, msg || errMsg || 'NADA GRAVADO');
 
@@ -243,7 +269,7 @@ function finishCapture(errMsg) {
       });
       const ch = buf.numberOfChannels > 0 ? buf.getChannelData(0) : null;
       if (!ch || !ch.length) return fail('áudio vazio');
-      c.onDone({ data: ch.slice(0), sr: buf.sampleRate });
+      c.onDone({ data: normalizePeak(ch), sr: buf.sampleRate });
     } catch (e) {
       fail('falha ao decodificar');
     }
@@ -272,5 +298,5 @@ export async function decodeFile(file) {
   startAudio();
   const raw = await file.arrayBuffer();
   const buf = await ctx.decodeAudioData(raw.slice(0));
-  return { data: buf.getChannelData(0).slice(0), sr: buf.sampleRate };
+  return { data: normalizePeak(buf.getChannelData(0)), sr: buf.sampleRate };
 }
