@@ -3,10 +3,7 @@
    Regras de ouro em STACK.md: nada de atribuir .value durante o som,
    compressor no fim da cadeia, contexto só nasce em gesto do usuário.
 
-   Captura de microfone: MediaRecorder (o caminho que já funciona no
-   iPad da banda). AudioWorklet + getUserMedia no Safari costuma mostrar
-   nível no analisador e entregar bloco vazio — exatamente o sintoma
-   "aparece a captação e não grava no pad".
+   Captura: MediaRecorder, igual ao instrumento da banda no iPad.
    ========================================================= */
 
 const volGain = (v) => Math.pow(v, 2) * 0.9;
@@ -107,7 +104,18 @@ export const getMicStats = () => ({
   an: analyserPeak(),
   state: ctx ? ctx.state : 'sem contexto',
   sr: ctx ? ctx.sampleRate : 0,
+  mr: cap && cap.recorder ? cap.recorder.state : 'off',
 });
+
+async function getMicStream() {
+  try {
+    return await navigator.mediaDevices.getUserMedia({
+      audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false },
+    });
+  } catch (e) {
+    return navigator.mediaDevices.getUserMedia({ audio: true });
+  }
+}
 
 export async function openMic() {
   if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) return 'nomic';
@@ -115,9 +123,7 @@ export async function openMic() {
   startAudio();
 
   if (!micStream) {
-    micStream = await navigator.mediaDevices.getUserMedia({
-      audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false },
-    });
+    micStream = await getMicStream();
     const el = document.getElementById('micKeep');
     if (el) {
       el.srcObject = micStream;
@@ -137,50 +143,61 @@ export async function openMic() {
   return ctx.state === 'running' ? 'ok' : 'suspenso';
 }
 
-/* Espera o som passar do limiar e só então liga o MediaRecorder.
-   Sem pré-roll de worklet: no iPad a confiabilidade vale mais. */
-export function armCapture({ threshold, maxSec, onState, onDone }) {
+/* Liga o MediaRecorder na hora — no iOS o analisador Web Audio pode
+   ficar mudo com o mesmo stream que o MediaRecorder grava bem.
+   O limiar fica só como referência visual; não trava o início. */
+export function armCapture({ maxSec, onState, onDone }) {
   cancelCapture();
-  cap = {
-    threshold, maxSec, onState, onDone,
-    rec: false, recorder: null, chunks: [],
+  if (!micStream) {
+    onDone(null, 'sem microfone');
+    return;
+  }
+
+  const mime = pickMime();
+  let recorder;
+  try {
+    recorder = mime ? new MediaRecorder(micStream, { mimeType: mime }) : new MediaRecorder(micStream);
+  } catch (e) {
+    try { recorder = new MediaRecorder(micStream); }
+    catch (e2) { onDone(null, 'MediaRecorder indisponível'); return; }
+  }
+
+  const c = {
+    maxSec, onState, onDone,
+    recorder, chunks: [],
     raf: 0, timer: 0,
   };
-  onState('wait', 0);
-  watchPeak(cap);
-}
+  cap = c;
 
-function watchPeak(c) {
+  /* NUNCA filtre chunks com `cap === c`: no iOS o único blob útil chega
+     no ondataavailable disparado pelo stop(), depois de cap já ter
+     mudado. No Mac os pedaços vêm durante a gravação — por isso só o
+     iPad “não gravava”. */
+  recorder.ondataavailable = (e) => {
+    if (e.data && e.data.size) c.chunks.push(e.data);
+  };
+  recorder.onerror = () => finishCapture('erro do gravador');
+
+  try {
+    recorder.start(250);
+  } catch (e) {
+    try { recorder.start(); }
+    catch (e2) {
+      cap = null;
+      onDone(null, 'não iniciou a gravação');
+      return;
+    }
+  }
+
+  c.timer = setTimeout(() => { if (cap === c) finishCapture(); }, maxSec * 1000);
+  onState('rec', analyserPeak());
+
   const tick = () => {
     if (cap !== c) return;
-    const peak = analyserPeak();
-    if (!c.rec) {
-      c.onState('wait', peak);
-      if (peak >= c.threshold) beginRecorder(c);
-    } else {
-      c.onState('rec', peak);
-    }
+    c.onState('rec', analyserPeak());
     c.raf = requestAnimationFrame(tick);
   };
   c.raf = requestAnimationFrame(tick);
-}
-
-function beginRecorder(c) {
-  if (c.rec || !micStream) return;
-  c.rec = true;
-  c.chunks = [];
-  const mime = pickMime();
-  try {
-    c.recorder = mime ? new MediaRecorder(micStream, { mimeType: mime }) : new MediaRecorder(micStream);
-  } catch (e) {
-    c.recorder = new MediaRecorder(micStream);
-  }
-  c.recorder.ondataavailable = (e) => {
-    if (cap === c && e.data && e.data.size) c.chunks.push(e.data);
-  };
-  c.recorder.start();
-  c.timer = setTimeout(() => { if (cap === c) finishCapture(); }, c.maxSec * 1000);
-  c.onState('rec', analyserPeak());
 }
 
 export function cancelCapture() {
@@ -191,6 +208,7 @@ export function cancelCapture() {
   if (c.timer) clearTimeout(c.timer);
   if (c.recorder && c.recorder.state !== 'inactive') {
     c.recorder.ondataavailable = null;
+    c.recorder.onerror = null;
     c.recorder.onstop = null;
     try { c.recorder.stop(); } catch (e) { /* já parado */ }
   }
@@ -200,35 +218,50 @@ export function stopCapture() { if (cap) finishCapture(); }
 
 export const isCapturing = () => !!cap;
 
-function finishCapture() {
+function finishCapture(errMsg) {
   const c = cap;
   if (!c) return;
   cap = null;
   if (c.raf) cancelAnimationFrame(c.raf);
   if (c.timer) clearTimeout(c.timer);
 
-  const fail = () => c.onDone(null);
+  const fail = (msg) => c.onDone(null, msg || errMsg || 'NADA GRAVADO');
 
-  if (!c.rec || !c.recorder) return fail();
+  if (!c.recorder) return fail();
 
-  c.recorder.ondataavailable = (e) => {
-    if (e.data && e.data.size) c.chunks.push(e.data);
-  };
-  c.recorder.onstop = async () => {
+  const decode = async () => {
     try {
-      if (!c.chunks.length) return fail();
-      const blob = new Blob(c.chunks, { type: c.chunks[0].type || 'audio/mp4' });
-      const buf = await ctx.decodeAudioData(await blob.arrayBuffer());
-      c.onDone({ data: buf.getChannelData(0).slice(0), sr: buf.sampleRate });
+      if (!c.chunks.length) return fail('sem áudio no blob');
+      const type = c.chunks[0].type || c.recorder.mimeType || 'audio/mp4';
+      const blob = new Blob(c.chunks, { type });
+      const raw = await blob.arrayBuffer();
+      /* iOS consome/detacha o ArrayBuffer — precisa de cópia. */
+      const copy = raw.slice(0);
+      const buf = await new Promise((ok, err) => {
+        const p = ctx.decodeAudioData(copy, ok, err);
+        if (p && typeof p.then === 'function') p.then(ok, err);
+      });
+      const ch = buf.numberOfChannels > 0 ? buf.getChannelData(0) : null;
+      if (!ch || !ch.length) return fail('áudio vazio');
+      c.onDone({ data: ch.slice(0), sr: buf.sampleRate });
     } catch (e) {
-      fail();
+      fail('falha ao decodificar');
     }
   };
 
-  if (c.recorder.state === 'recording') {
-    try { c.recorder.stop(); } catch (e) { fail(); }
+  c.recorder.onstop = () => { decode(); };
+
+  if (c.recorder.state === 'recording' || c.recorder.state === 'paused') {
+    try {
+      if (typeof c.recorder.requestData === 'function') {
+        try { c.recorder.requestData(); } catch (e) { /* iOS antigo */ }
+      }
+      c.recorder.stop();
+    } catch (e) {
+      fail('não parou o gravador');
+    }
   } else if (c.chunks.length) {
-    c.recorder.onstop();
+    decode();
   } else {
     fail();
   }
@@ -237,6 +270,7 @@ function finishCapture() {
 /* ---------- importar arquivo ---------- */
 export async function decodeFile(file) {
   startAudio();
-  const buf = await ctx.decodeAudioData(await file.arrayBuffer());
+  const raw = await file.arrayBuffer();
+  const buf = await ctx.decodeAudioData(raw.slice(0));
   return { data: buf.getChannelData(0).slice(0), sr: buf.sampleRate };
 }

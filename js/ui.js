@@ -237,12 +237,7 @@ function setMode(mode) {
 function bindTransport() {
   $('#btnRec').addEventListener('pointerdown', onRec);
   $('#btnStop').addEventListener('pointerdown', () => {
-    /* No iPad a mão vai no STOP para encerrar — salvar se já gravou,
-       cancelar só se ainda estava esperando o limiar. */
-    if (state.recArmed) {
-      if (state.recState === 'rec') audio.stopCapture();
-      else cancelRec();
-    }
+    if (state.recArmed) audio.stopCapture();
     sampler.stopAll();
   });
   $('#btnPlay').addEventListener('pointerdown', () => {
@@ -259,32 +254,28 @@ function bindTransport() {
   $('#btnBank').textContent = 'BANCO ' + BANKS[state.bank];
 }
 
-/* Gravar sample: primeiro toque arma e espera o som, segundo encerra. */
+/* Gravar sample: primeiro toque grava na hora, segundo encerra e salva. */
 async function onRec() {
   if (state.recArmed) return audio.stopCapture();
   const st = await audio.openMic().catch(() => 'erro');
   if (st === 'nomic' || st === 'erro') return flash('SEM MICROFONE — precisa de https');
   if (st === 'suspenso') return flash('TOQUE REC DE NOVO');
 
-  setTimeout(() => {
-    if (state.recArmed && audio.getMicStats().an < 0.001) flash('MIC SEM SINAL');
-  }, 2000);
-
   state.recArmed = true;
-  state.recState = 'wait';
+  state.recState = 'rec';
   $('#btnRec').classList.add('armed');
   updateKnobLabels();
+  flash('GRAVANDO · REC p/ salvar');
 
   audio.armCapture({
-    threshold: state.rec.threshold,
     maxSec: state.rec.maxSec,
     onState: (s, peak) => { state.recState = s; state.recPeak = peak; },
-    onDone: (res) => {
+    onDone: (res, err) => {
       state.recArmed = false;
       state.recPeak = 0;
       $('#btnRec').classList.remove('armed');
       updateKnobLabels();
-      if (!res) return flash('NADA GRAVADO');
+      if (!res) return flash(err || 'NADA GRAVADO');
       const pad = state.selPad;
       const tinha = !!sampler.padDef(state.bank, pad);
       const id = sampler.addSample('REC ' + (pad + 1), res.data, res.sr);
@@ -419,7 +410,7 @@ function loop() {
     : (pd ? (pd.pitch > 0 ? '+' : '') + pd.pitch.toFixed(1) + ' ST' : state.bpm.toFixed(1) + ' BPM');
   $('#scrHint').textContent = performance.now() < flashUntil
     ? flashText
-    : (mic ? 'PICO ' + Math.max(state.recPeak, mic.an).toFixed(2) + ' · REC p/ salvar'
+    : (mic ? 'GRAVANDO · REC ou STOP salva'
       : state.levels16 ? '16 LEVELS · PAD ' + (state.selPad + 1)
       : state.shift ? 'segunda camada'
       : s ? 'PAD ' + (state.selPad + 1) : 'REC grava · SHIFT+16 importa');
