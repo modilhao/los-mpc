@@ -1,7 +1,11 @@
 /* Bumpar VERSION a cada release que o iPad precisa ver. */
-const VERSION = 'v1.0.0';
-const CACHE = 'cabacitos-kit-' + VERSION;
-const FILES = ['./', './index.html', './manifest.json', './icon.svg', './STACK.md'];
+const VERSION = 'v0.1.0';
+const CACHE = 'cabacitos-mpc-' + VERSION;
+const FILES = [
+  './', './index.html', './manifest.json', './icon.svg',
+  './css/app.css',
+  './js/main.js', './js/ui.js',
+];
 
 self.addEventListener('install', (e) => {
   e.waitUntil(caches.open(CACHE).then(c => c.addAll(FILES)).then(() => self.skipWaiting()));

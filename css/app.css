@@ -1,0 +1,144 @@
+/* =========================================================
+   TOKENS — Los Cabacitos MPC
+   Base do kit da banda (papel claro + encoders OP-1), com os
+   acréscimos que o aparelho pede: faixa escura no topo, pads
+   de borracha e o grupo ciano do PAD PLAY.
+   Não invente cor nova: escolha uma destas ou adicione aqui.
+   ========================================================= */
+:root {
+  /* superfícies */
+  --body:   #e6e5e1;   /* fundo do aparelho (papel) */
+  --panel:  #efeeea;   /* botões, lanes */
+  --line:   #c9c8c3;   /* borda padrão 1.5px */
+  --ink:    #2b2b28;   /* texto, estado ativo, faixa do topo */
+  --dim:    #8a8a84;   /* texto secundário */
+
+  /* encoders — a ordem importa: k1 k2 k3 k4 */
+  --blue:   #3d9bf2;   /* k1 */
+  --green:  #2fbf7b;   /* k2 */
+  --white:  #fafaf8;   /* k3 */
+  --orange: #ff7a1a;   /* k4 — também é a cor de "tocando/gravado" */
+
+  /* grupos de função do painel */
+  --cyan:   #4ec8e8;   /* PAD PLAY: chop, mute, loop, 16 levels */
+  --rec:    #d94c4c;   /* gravação e ação destrutiva */
+
+  /* display */
+  --screen:     #1b1d1b;
+  --screen-ink: #d8ffe8;
+
+  /* pads */
+  --pad:      #d9d8d3;
+  --pad-edge: #9fb8cc;   /* o contorno azulado do aparelho */
+
+  --radius:    10px;
+  --radius-sm: 7px;
+  --border:    1.5px;
+}
+
+* { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+
+html, body {
+  height:100%; overflow:hidden; background:var(--body); color:var(--ink);
+  font-family:-apple-system, "Helvetica Neue", Helvetica, Arial, sans-serif;
+  touch-action:none; user-select:none; -webkit-user-select:none;
+}
+
+#app {
+  height:100%; display:flex; flex-direction:column; gap:8px;
+  padding: calc(8px + env(safe-area-inset-top)) calc(12px + env(safe-area-inset-right))
+           calc(10px + env(safe-area-inset-bottom)) calc(12px + env(safe-area-inset-left));
+}
+
+/* ---------- topo: faixa escura com marca + display ---------- */
+#top {
+  flex:0 0 auto; display:flex; gap:12px; align-items:stretch;
+  background:var(--ink); border-radius:var(--radius); padding:9px 12px;
+}
+#brand { display:flex; flex-direction:column; justify-content:space-between; min-width:74px; }
+#brand h1 { font-size:11px; font-weight:800; letter-spacing:.2em; line-height:1.35; color:var(--body); }
+#brand h1 span { color:var(--orange); }
+#brand small { font-size:14px; font-weight:800; letter-spacing:.22em; color:var(--rec); }
+
+#screenWrap {
+  flex:1; min-height:96px; position:relative; overflow:hidden;
+  background:var(--screen); border-radius:var(--radius-sm);
+  box-shadow: inset 0 2px 8px #0009;
+}
+#scope { position:absolute; inset:0; width:100%; height:100%; }
+.scr {
+  position:absolute; color:var(--screen-ink); letter-spacing:.14em;
+  font-variant-numeric:tabular-nums;
+}
+#scrMode { top:7px; left:11px; font-size:12px; font-weight:800; }
+#scrName { top:24px; left:11px; font-size:9px; letter-spacing:.08em; opacity:.55; }
+#scrBank { top:7px; right:11px; font-size:10px; opacity:.8; }
+#scrBpm  { bottom:6px; right:11px; font-size:10px; opacity:.8; }
+#scrHint { bottom:6px; left:11px; font-size:10px; opacity:.8; }
+
+/* ---------- botões ---------- */
+.btn {
+  padding:8px 10px; border-radius:9px; border:var(--border) solid var(--line);
+  background:var(--panel); color:var(--ink);
+  font-size:10px; font-weight:800; letter-spacing:.12em; text-align:center;
+  cursor:pointer; display:flex; flex-direction:column; align-items:center; justify-content:center;
+}
+.btn:active { background:#fff; border-color:var(--ink); }
+.btn.active  { background:var(--ink); color:var(--body); border-color:var(--ink); }
+
+/* grupos coloridos do painel, como a serigrafia do aparelho */
+.btn.fx   { background:#ffe6d2; border-color:#f0b183; }
+.btn.fx.active   { background:var(--orange); color:#fff; border-color:var(--orange); }
+.btn.play { background:#dff3fb; border-color:#9ad4e8; }
+.btn.play.active { background:var(--cyan); color:var(--ink); border-color:var(--cyan); }
+.btn.shift.active { background:#2f3f66; border-color:#2f3f66; color:#fff; }
+
+/* rótulo secundário, o que está impresso embaixo da tecla */
+.btn small { display:block; font-size:7px; letter-spacing:.1em; color:var(--dim); margin-top:2px; }
+
+/* ---------- linhas de controle ---------- */
+#modes, #padPlay, #transport { flex:0 0 auto; display:grid; gap:5px; }
+#modes     { grid-template-columns:repeat(4, 1fr) 0.8fr; }
+#padPlay   { grid-template-columns:repeat(4, 1fr); }
+#transport { grid-template-columns:repeat(6, 1fr); }
+#transport .btn { padding:10px 6px; }
+#btnRec.armed { background:var(--rec); border-color:var(--rec); color:#fff; }
+
+/* ---------- encoders ---------- */
+#encoders { flex:0 0 auto; display:flex; gap:4px; justify-content:space-around; }
+.knob { display:flex; flex-direction:column; align-items:center; touch-action:none; flex:1; }
+.knob svg { width:72px; height:72px; }
+.knob .kname { font-size:10px; font-weight:800; letter-spacing:.16em; }
+.knob .ksub  { font-size:9px; color:var(--dim); letter-spacing:.03em; min-height:11px; text-align:center; }
+.karc  { stroke:var(--line); stroke-width:7; fill:none; stroke-linecap:round; }
+.kval  { stroke-width:7; fill:none; stroke-linecap:round; }
+.kbody { stroke:#00000018; stroke-width:1; }
+.kdot  { fill:var(--ink); }
+.knob[data-color="white"] .kdot { fill:#555; }
+
+/* ---------- pads ---------- */
+#pads {
+  flex:1 1 auto; min-height:0; display:grid;
+  grid-template-columns:repeat(4, 1fr); grid-template-rows:repeat(4, 1fr); gap:7px;
+}
+.pad {
+  position:relative; border-radius:var(--radius); cursor:pointer;
+  background:var(--pad); border:2px solid var(--pad-edge);
+  box-shadow: inset 0 -3px 0 #0000000e;
+  display:flex; align-items:center; justify-content:center;
+}
+.pad .pnum {
+  position:absolute; top:5px; left:7px;
+  font-size:9px; font-weight:800; letter-spacing:.1em; color:#00000038;
+}
+/* a serigrafia: existe sempre, só aparece com SHIFT */
+.pad .pshift {
+  font-size:9px; font-weight:800; letter-spacing:.1em; color:var(--ink);
+  text-align:center; padding:0 6px; opacity:0;
+}
+body.shift .pad .pshift { opacity:.75; }
+body.shift .pad { background:#e7e6e1; border-color:#c2c1bc; }
+
+.pad.filled { background:#cfd8de; }
+.pad.down   { background:var(--orange); border-color:var(--orange); transform:translateY(1px); }
+.pad.down .pnum { color:#ffffff88; }

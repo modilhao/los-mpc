@@ -1,9 +1,9 @@
 {
-  "name": "Los Cabacitos Kit",
-  "short_name": "Kit",
+  "name": "Los Cabacitos MPC",
+  "short_name": "MPC",
   "start_url": "./",
   "display": "standalone",
-  "orientation": "landscape",
+  "orientation": "portrait",
   "background_color": "#e6e5e1",
   "theme_color": "#e6e5e1",
   "icons": [
