@@ -1,83 +1,47 @@
-# Los Cabacitos Kit
+# Los Cabacitos MPC
 
-Ponto de partida dos instrumentos da banda para iPad. Clonou, já tem um sintetizador
-tocável: teclado polifônico multitouch, três engines de exemplo, quatro encoders
-contextuais, display com osciloscópio, cadeia de efeitos e PWA offline.
+Sampler / groovebox pra iPad: 16 pads, microfone, chop, sequenciador com note repeat e KNOB FX. Sem build, sem login.
 
-A ideia não é usar este app — é apagar o que não serve e ficar com o esqueleto certo.
+**App:** [los-mpc.vercel.app](https://los-mpc.vercel.app)  
+**Manual + tutoriais do repertório:** [docs/MANUAL.md](docs/MANUAL.md)
 
-## Rodar
+## Rodar local
 
 ```bash
-python3 -m http.server 8000
+python3 -m http.server 8765
 ```
 
-E abrir <http://localhost:8000>. Não há build, não há `npm install`.
+Abrir <http://localhost:8765>. No iPad: Vercel + **Adicionar à Tela de Início** (HTTPS é obrigatório pro microfone).
 
-No iPad: publicar na Vercel (HTTPS é requisito de service worker) e usar
-**Compartilhar → Adicionar à Tela de Início**.
-
-## O que já vem pronto
+## O que tem na v3.0.0
 
 | | |
 |---|---|
-| Teclado | 2 oitavas cromáticas, 8 vozes, glide por dedo, glissando ao arrastar |
-| Engines | `SUB` (sub-oitava), `DRONE` (saws desafinados), `FM` — exemplos dos dois modos de voz |
-| Encoders | CTRL · PARAM · GLIDE · VOL; o botão **FX** remapeia os mesmos quatro para DELAY · PHASER · REVERB · DRIVE |
-| FX | drive (tanh) → phaser (4 allpass) → delay de fita → reverb por convolução → compressor |
-| Display | osciloscópio na cor do engine, notas soando, oitava, indicador de FX |
-| Presets | um por engine (**SALVAR**; ponto laranja = salvo) |
-| Persistência | knobs, presets, FX e sessão em `localStorage` |
-| PWA | `sw.js` cache-first, manifest, ícone, safe-area, wake lock |
-| iOS | resume do `AudioContext` ao voltar do background — sem isso o som some |
+| SAMPLE | Gravação (MediaRecorder), importar, TRIM, 16 LEVELS, FULL LEVEL |
+| Pads | 8 bancos × 16, choke, pitch, região start/end, velocidade por posição do dedo |
+| SEQ | Overdub, TIME CORRECT, swing, note repeat, erase, step edit, 8 sequências |
+| CHOP | Fatia por transiente e espalha nos pads |
+| KNOB FX | Filtro, delay, crush, reverb |
+| Persistência | IndexedDB (samples + projeto) · localStorage (sessão) |
+| PWA | Service worker rede-primeiro, wake lock, safe-area |
 
 ## Arquivos
 
 ```
-index.html    o app inteiro: tokens de design + UI + motor de áudio
-sw.js         service worker (bumpar VERSION a cada release)
-manifest.json PWA
-icon.svg      ícone
-vercel.json   impede o CDN de cachear o sw.js
-STACK.md      os padrões: regras de áudio, design system, UX, deploy
+index.html      casca
+css/app.css     tokens e layout
+js/main.js      boot
+js/audio.js     contexto, mic, FX, ciclo iOS
+js/sampler.js   pads, vozes, chop
+js/seq.js       sequenciador
+js/store.js     IndexedDB
+js/ui.js        painel
+docs/MANUAL.md  manual de palco + ensaios
+STACK.md        regras de ouro da família
 ```
-
-## Começando um projeto novo
-
-```bash
-cp -R ~/Apps/los-cabacitos-kit ~/Apps/"Los Cabacitos — Nome"
-```
-
-Depois, na ordem:
-
-1. **Identidade** — `APP_ID` no `index.html`, `<title>`, `manifest.json`, nome do cache no `sw.js`
-2. **Timbre** — reescrever a tabela `ENGINES` (seção 1 do script). É onde o instrumento nasce:
-   cada entrada diz o timbre e o que os knobs CTRL e PARAM fazem
-3. **Superfície** — o teclado é só uma das opções; pode virar pads, grade de steps, o que for
-4. **Publicar** — repo no GitHub + Vercel (framework *Other*, estático)
-
-Antes de mexer no áudio, ler as **regras de ouro** do [`STACK.md`](STACK.md).
-São curtas e cada uma corresponde a um defeito audível que já apareceu em produção.
-
-## Onde mexer no `index.html`
-
-O script é dividido em nove seções numeradas:
-
-| | |
-|---|---|
-| 1 | `ENGINES` — a tabela de timbres |
-| 2 | estado e persistência |
-| 3 | grafo de áudio (master + FX) |
-| 4 | vozes: alocação, nota, glide, release |
-| 5 | ciclo de vida no iOS |
-| 6 | aplicar parâmetros |
-| 7 | UI: engines, encoders, teclado |
-| 8 | display |
-| 9 | boot |
-
-Na prática, um instrumento novo mexe em 1, 7 e um pouco de 3.
 
 ## Família
 
-- [Los Cabacitos Synth](https://github.com/modilhao/los-cabacitos-synth) — [prod](https://los-cabacitos-synth.vercel.app)
-- Los Cabacitos App (instrumento de repertório) — [prod](https://los-cabacitos-app.vercel.app)
+- [Synth](https://github.com/modilhao/los-cabacitos-synth) — [prod](https://los-cabacitos-synth.vercel.app)
+- [App de repertório](https://los-cabacitos-app.vercel.app)
+- [MPC](https://github.com/modilhao/los-mpc) — [prod](https://los-mpc.vercel.app)
