@@ -69,11 +69,6 @@ export function assign(b, p, sampleId) {
   saveProject();
 }
 
-export function firstEmpty(b) {
-  const i = banks[b].findIndex((p) => !p);
-  return i < 0 ? 0 : i;
-}
-
 export function clearPad(b, p) {
   banks[b][p] = null;
   saveProject();

@@ -91,6 +91,9 @@ function velocityAt(pad, e) {
 
 function padDown(i, vel) {
   if (state.shift) return shiftAction(i);
+  /* Com o REC armado o pad só escolhe o destino: disparar aqui jogaria
+     som no microfone e a gravação começaria sozinha. */
+  if (state.recArmed) return selectPad(i);
   if (state.levels16) {
     sampler.trigger(state.bank, state.selPad, (i + 1) / 16);
     return;
@@ -108,6 +111,7 @@ function selectPad(i) {
     state.knobs.k3 = (pd.pitch + 12) / 24;
     drawAllKnobs();
   }
+  refreshPads();
 }
 
 export function refreshPads() {
@@ -260,7 +264,7 @@ async function onRec() {
   const blocosAntes = audio.getMicStats().blocks;
   setTimeout(() => {
     if (state.recArmed && audio.getMicStats().blocks === blocosAntes) flash('MIC SEM SINAL');
-  }, 1200);
+  }, 2000);
 
   state.recArmed = true;
   state.recState = 'wait';
@@ -277,12 +281,12 @@ async function onRec() {
       $('#btnRec').classList.remove('armed');
       updateKnobLabels();
       if (!res) return flash('NADA GRAVADO');
-      const pad = sampler.padDef(state.bank, state.selPad) ? sampler.firstEmpty(state.bank) : state.selPad;
+      const pad = state.selPad;
+      const tinha = !!sampler.padDef(state.bank, pad);
       const id = sampler.addSample('REC ' + (pad + 1), res.data, res.sr);
       sampler.assign(state.bank, pad, id);
       selectPad(pad);
-      refreshPads();
-      flash('PAD ' + (pad + 1) + ' GRAVADO');
+      flash('PAD ' + (pad + 1) + (tinha ? ' REGRAVADO' : ' GRAVADO'));
     },
   });
 }
@@ -304,11 +308,10 @@ function bindImport() {
     flash('DECODIFICANDO...');
     try {
       const { data, sr } = await audio.decodeFile(file);
-      const pad = sampler.padDef(state.bank, state.selPad) ? sampler.firstEmpty(state.bank) : state.selPad;
+      const pad = state.selPad;
       const id = sampler.addSample(file.name.replace(/\.[^.]+$/, '').slice(0, 18).toUpperCase(), data, sr);
       sampler.assign(state.bank, pad, id);
       selectPad(pad);
-      refreshPads();
       flash('PAD ' + (pad + 1) + ' CARREGADO');
     } catch (err) {
       flash('ARQUIVO NÃO LIDO');
