@@ -75,7 +75,7 @@ export function clearPad(b, p) {
 }
 
 /* ---------- disparo ---------- */
-export function trigger(b, p, vel = 1) {
+export function trigger(b, p, vel = 1, when = null) {
   const pd = banks[b][p];
   if (!pd) return false;
   const s = samples.get(pd.sampleId);
@@ -87,7 +87,7 @@ export function trigger(b, p, vel = 1) {
   chokePad(b, p);
   if (active.length >= MAX_VOICES) stopVoice(active[0], 0.005);
 
-  const t = ctx.currentTime;
+  const t = when != null ? when : ctx.currentTime;
   const dur = buf.duration;
   const a = pd.start * dur;
   const len = Math.max(0.005, (pd.end - pd.start) * dur);
@@ -131,15 +131,73 @@ export function stopAll() {
   for (const v of active.slice()) stopVoice(v, 0.01);
 }
 
+/* CHOP: fatia o sample do pad pelos transientes e espalha nos 16 pads. */
+export function chopPad(b, p) {
+  const pd = banks[b][p];
+  if (!pd) return 0;
+  const s = samples.get(pd.sampleId);
+  if (!s) return 0;
+  const a0 = Math.floor(pd.start * s.data.length);
+  const a1 = Math.floor(pd.end * s.data.length);
+  if (a1 - a0 < s.sr * 0.05) return 0;
+  const slice = s.data.subarray(a0, a1);
+  const cuts = findTransients(slice, s.sr);
+  /* no máximo 16 fatias; se achou pouco, divide em partes iguais */
+  let points = cuts;
+  if (points.length < 2) {
+    points = [];
+    const n = 8;
+    for (let i = 0; i < n; i++) points.push(Math.floor((i / n) * slice.length));
+  }
+  points = points.slice(0, 16);
+  if (points[points.length - 1] < slice.length) points.push(slice.length);
+
+  let n = 0;
+  for (let i = 0; i < points.length - 1 && i < 16; i++) {
+    const from = points[i];
+    const to = points[i + 1];
+    if (to - from < s.sr * 0.02) continue;
+    const data = slice.slice(from, to);
+    const id = addSample('CHOP ' + (i + 1), data, s.sr);
+    assign(b, i, id);
+    n++;
+  }
+  return n;
+}
+
+function findTransients(data, sr) {
+  const hop = Math.max(32, Math.floor(sr * 0.004));
+  const minGap = Math.floor(sr * 0.06);
+  const cuts = [0];
+  let prev = 0;
+  let run = 0;
+  for (let i = 0; i < data.length; i += hop) {
+    let e = 0;
+    const end = Math.min(data.length, i + hop);
+    for (let j = i; j < end; j++) e += data[j] * data[j];
+    e = Math.sqrt(e / (end - i));
+    run = run * 0.85 + e * 0.15;
+    if (e > 0.08 && e > prev * 2.2 && (i - cuts[cuts.length - 1]) > minGap) {
+      cuts.push(i);
+      if (cuts.length >= 16) break;
+    }
+    prev = run;
+  }
+  return cuts;
+}
+
 /* ---------- projeto ---------- */
 export function serialize() {
   return { banks: banks.map((bk) => bk.map((p) => (p ? { ...p } : null))) };
 }
 
+let extras = () => ({});
+export function setProjectExtras(fn) { extras = fn; }
+
 let saveTimer = null;
 export function saveProject() {
   clearTimeout(saveTimer);
-  saveTimer = setTimeout(() => store.putProject(serialize()), 300);
+  saveTimer = setTimeout(() => store.putProject({ ...serialize(), ...extras() }), 300);
 }
 
 export async function loadFromDisk() {
@@ -150,5 +208,5 @@ export async function loadFromDisk() {
       banks[b][i] = p && samples.has(p.sampleId) ? p : null;
     }));
   }
-  return list.length;
+  return { count: list.length, proj };
 }

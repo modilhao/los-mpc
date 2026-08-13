@@ -1,11 +1,11 @@
 /* Bumpar VERSION a cada release que o iPad precisa ver. */
-const VERSION = 'v0.2.6';
+const VERSION = 'v3.0.0';
 const CACHE = 'cabacitos-mpc-' + VERSION;
 const FILES = [
   './', './index.html', './manifest.json', './icon.svg',
   './css/app.css',
   './js/main.js', './js/ui.js', './js/audio.js',
-  './js/sampler.js', './js/store.js', './js/tap-worklet.js',
+  './js/sampler.js', './js/store.js', './js/seq.js', './js/tap-worklet.js',
 ];
 
 self.addEventListener('install', (e) => {
@@ -20,8 +20,6 @@ self.addEventListener('activate', (e) => {
   );
 });
 
-/* Rede primeiro: o cache-first antigo deixava o iPad (e o Mac) preso na
-   versão anterior mesmo depois do deploy. Offline ainda cai no cache. */
 self.addEventListener('fetch', (e) => {
   if (e.request.method !== 'GET') return;
   e.respondWith(

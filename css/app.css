@@ -148,8 +148,11 @@ body.shift .pad { background:#e7e6e1; border-color:#c2c1bc; }
 
 .pad.filled { background:#cfd8de; }
 .pad.sel    { border-color:var(--ink); }
+.pad.playhead { box-shadow: inset 0 0 0 2px var(--orange), inset 0 -3px 0 #0000000e; }
 .pad.down   { background:var(--orange); border-color:var(--orange); transform:translateY(1px); }
 .pad.down .pnum { color:#ffffff88; }
+
+#btnPlay.active, #btnRepeat.active { background:var(--ink); color:#fff; }
 
 /* ---------- TRIM: ocupa o lugar dos pads, nunca aparece junto ---------- */
 #trim { display:none; flex:1 1 auto; min-height:0; flex-direction:column; gap:7px; }

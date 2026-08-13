@@ -10,6 +10,7 @@ const volGain = (v) => Math.pow(v, 2) * 0.9;
 
 let ctx = null;
 let busIn, master, comp, analyser;
+let fxFilter, fxCrush, fxDelay, fxDelayFb, fxDelayWet, fxVerb, fxVerbFb, fxVerbWet;
 let wakeSentinel = null;
 
 let micStream = null;
@@ -36,11 +37,46 @@ export function startAudio() {
 
   master = ctx.createGain();
   busIn = ctx.createGain();
-  /* Makeup depois do compressor: sem isso a cadeia fica bem abaixo
-     do nível do arquivo original (ratio 5 no threshold -10 come ~6–10 dB). */
+
+  /* KNOB FX: filtro → crush → dry + delay + cauda simples */
+  fxFilter = ctx.createBiquadFilter();
+  fxFilter.type = 'lowpass';
+  fxFilter.frequency.value = 18000;
+  fxFilter.Q.value = 0.7;
+
+  fxCrush = ctx.createWaveShaper();
+  fxCrush.curve = crushCurve(1);
+  fxCrush.oversample = '2x';
+
+  fxDelay = ctx.createDelay(1.0);
+  fxDelay.delayTime.value = 0.28;
+  fxDelayFb = ctx.createGain();
+  fxDelayFb.gain.value = 0;
+  fxDelayWet = ctx.createGain();
+  fxDelayWet.gain.value = 0;
+  fxDelay.connect(fxDelayFb).connect(fxDelay);
+  fxDelay.connect(fxDelayWet);
+
+  fxVerb = ctx.createDelay(1.5);
+  fxVerb.delayTime.value = 0.08;
+  fxVerbFb = ctx.createGain();
+  fxVerbFb.gain.value = 0;
+  fxVerbWet = ctx.createGain();
+  fxVerbWet.gain.value = 0;
+  fxVerb.connect(fxVerbFb).connect(fxVerb);
+  fxVerb.connect(fxVerbWet);
+
+  const fxOut = ctx.createGain();
+  busIn.connect(fxFilter).connect(fxCrush).connect(fxOut);
+  fxCrush.connect(fxDelay);
+  fxCrush.connect(fxVerb);
+  fxDelayWet.connect(fxOut);
+  fxVerbWet.connect(fxOut);
+  fxOut.connect(master);
+
   const makeup = ctx.createGain();
   makeup.gain.value = 2.2;
-  busIn.connect(master).connect(comp).connect(makeup).connect(analyser).connect(ctx.destination);
+  master.connect(comp).connect(makeup).connect(analyser).connect(ctx.destination);
 
   /* playback = nível cheio nos pads. play-and-record só enquanto o mic
      estiver aberto — no iOS ele abafa a saída. */
@@ -60,6 +96,31 @@ function setAudioSession(type) {
 
 export function setMasterVolume(v) {
   if (master) master.gain.setTargetAtTime(volGain(v), ctx.currentTime, 0.02);
+}
+
+function crushCurve(amount) {
+  /* amount 0 = limpo, 1 = 4 bits */
+  const bits = Math.max(2, Math.round(16 - amount * 12));
+  const steps = Math.pow(2, bits);
+  const curve = new Float32Array(256);
+  for (let i = 0; i < 256; i++) {
+    const x = i / 128 - 1;
+    curve[i] = Math.round(x * steps) / steps;
+  }
+  return curve;
+}
+
+/* knobs 0..1 → filtro, delay, crush, reverb */
+export function setKnobFx(filter, delay, crush, reverb) {
+  if (!ctx || !fxFilter) return;
+  const t = ctx.currentTime;
+  const freq = 300 * Math.pow(60, 1 - filter); /* 18k → 300 */
+  fxFilter.frequency.setTargetAtTime(freq, t, 0.03);
+  fxDelayWet.gain.setTargetAtTime(delay * 0.55, t, 0.03);
+  fxDelayFb.gain.setTargetAtTime(delay * 0.45, t, 0.03);
+  fxCrush.curve = crushCurve(crush);
+  fxVerbWet.gain.setTargetAtTime(reverb * 0.5, t, 0.05);
+  fxVerbFb.gain.setTargetAtTime(reverb * 0.55, t, 0.05);
 }
 
 /* ---------- ciclo de vida (iOS) ---------- */

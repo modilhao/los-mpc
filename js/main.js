@@ -4,6 +4,7 @@
 import { initUI, refreshPads } from './ui.js';
 import * as audio from './audio.js';
 import * as sampler from './sampler.js';
+import * as seq from './seq.js';
 
 const APP_ID = 'cabacitos-mpc';
 const K_SESSION = APP_ID + ':session';
@@ -30,27 +31,30 @@ const state = {
   knobs: { k1: 0, k2: 1, k3: 0.5, k4: 0.7 },
 };
 state.knobs.k4 = state.vol;
+if (session.bpm) seq.setBpm(session.bpm);
 
 function saveSession() {
   localStorage.setItem(K_SESSION, JSON.stringify({
-    mode: state.mode, bank: state.bank, bpm: state.bpm,
+    mode: state.mode, bank: state.bank, bpm: seq.getBpm(),
     vol: state.vol, selPad: state.selPad,
   }));
 }
 
+sampler.setProjectExtras(() => seq.projectSlice());
 initUI(state, saveSession);
 
-sampler.loadFromDisk().then(() => refreshPads());
+sampler.loadFromDisk().then(({ proj }) => {
+  seq.loadProject(proj);
+  state.bpm = seq.getBpm();
+  refreshPads();
+});
 
-/* O AudioContext só pode nascer dentro de um gesto: qualquer toque serve. */
 document.getElementById('app').addEventListener('pointerdown', () => {
   audio.startAudio();
   audio.setMasterVolume(state.vol);
   audio.ensureAudioRunning();
 }, true);
 
-/* O Safari do iPad ignora touch-action para zoom de dois toques e pinça.
-   Só preventDefault nos gestos nativos segura a tela. */
 ['gesturestart', 'gesturechange', 'gestureend'].forEach((type) => {
   document.addEventListener(type, (e) => e.preventDefault(), { passive: false });
 });
