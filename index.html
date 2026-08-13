@@ -59,6 +59,9 @@
   </div>
 
   <input type="file" id="fileIn" accept="audio/*" hidden>
+  <!-- iOS só mantém o stream do microfone vivo se ele estiver preso a um
+       elemento de mídia; sem isto o Web Audio recebe silêncio -->
+  <audio id="micKeep" muted playsinline></audio>
 
   <div id="transport">
     <div class="btn" id="btnRec">REC<small>RECALL</small></div>

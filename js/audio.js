@@ -74,23 +74,64 @@ window.addEventListener('focus', onAppForeground);
 
 /* ---------- microfone ----------
    O tap vai para um ganho zerado: sem isso o nó não é processado, e com
-   monitoração aberta o alto-falante do iPad realimenta o microfone. */
+   monitoração aberta o alto-falante do iPad realimenta o microfone.
+
+   No iOS, abrir a sessão de microfone interrompe o AudioContext. Retomar
+   fora de um gesto do usuário falha calado: o indicador de gravação acende
+   e nenhum bloco chega. Por isso a função devolve o estado em vez de um
+   booleano — quem chamou precisa saber que falta um segundo toque. */
+let micBlocks = 0;
+let micAnalyser = null;
+const micWave = new Float32Array(1024);
+
+/* O analisador é a segunda opinião: se ele acusa nível e o worklet não
+   entrega bloco nenhum, o problema está no worklet, não no microfone. */
+function analyserPeak() {
+  if (!micAnalyser) return 0;
+  micAnalyser.getFloatTimeDomainData(micWave);
+  let p = 0;
+  for (let i = 0; i < micWave.length; i++) {
+    const a = Math.abs(micWave[i]);
+    if (a > p) p = a;
+  }
+  return p;
+}
+
+export const getMicStats = () => ({
+  blocks: micBlocks,
+  an: analyserPeak(),
+  state: ctx ? ctx.state : 'sem contexto',
+  sr: ctx ? ctx.sampleRate : 0,
+});
+
 export async function openMic() {
-  if (micSource) return true;
-  if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) return false;
+  if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) return 'nomic';
   startAudio();
+
+  if (!micSource) {
+    const stream = await navigator.mediaDevices.getUserMedia({
+      audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false },
+    });
+    const el = document.getElementById('micKeep');
+    if (el) {
+      el.srcObject = stream;
+      el.muted = true;
+      try { await el.play(); } catch (e) { /* o que importa é o stream ficar preso */ }
+    }
+    await ctx.audioWorklet.addModule('js/tap-worklet.js');
+    micSource = ctx.createMediaStreamSource(stream);
+    tapNode = new AudioWorkletNode(ctx, 'tap');
+    micSilent = ctx.createGain();
+    micSilent.gain.value = 0;
+    micSource.connect(tapNode).connect(micSilent).connect(ctx.destination);
+    micAnalyser = ctx.createAnalyser();
+    micAnalyser.fftSize = 1024;
+    micSource.connect(micAnalyser);
+    tapNode.port.onmessage = (e) => { micBlocks++; onBlock(e.data); };
+  }
+
   await ensureAudioRunning();
-  const stream = await navigator.mediaDevices.getUserMedia({
-    audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false },
-  });
-  await ctx.audioWorklet.addModule('js/tap-worklet.js');
-  micSource = ctx.createMediaStreamSource(stream);
-  tapNode = new AudioWorkletNode(ctx, 'tap');
-  micSilent = ctx.createGain();
-  micSilent.gain.value = 0;
-  micSource.connect(tapNode).connect(micSilent).connect(ctx.destination);
-  tapNode.port.onmessage = (e) => onBlock(e.data);
-  return true;
+  return ctx.state === 'running' ? 'ok' : 'suspenso';
 }
 
 /* ---------- captura com threshold ----------

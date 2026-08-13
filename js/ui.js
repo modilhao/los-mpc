@@ -253,8 +253,14 @@ function bindTransport() {
 /* Gravar sample: primeiro toque arma e espera o som, segundo encerra. */
 async function onRec() {
   if (state.recArmed) return audio.stopCapture();
-  const ok = await audio.openMic().catch(() => false);
-  if (!ok) return flash('SEM MICROFONE — precisa de https');
+  const st = await audio.openMic().catch(() => 'erro');
+  if (st === 'nomic' || st === 'erro') return flash('SEM MICROFONE — precisa de https');
+  if (st === 'suspenso') return flash('TOQUE REC DE NOVO');
+
+  const blocosAntes = audio.getMicStats().blocks;
+  setTimeout(() => {
+    if (state.recArmed && audio.getMicStats().blocks === blocosAntes) flash('MIC SEM SINAL');
+  }, 1200);
 
   state.recArmed = true;
   state.recState = 'wait';
@@ -357,12 +363,12 @@ function drawWave(cv, ctx2d, s, pd, big) {
   }
 }
 
-function drawMeter(cv, ctx2d) {
+function drawMeter(cv, ctx2d, peak) {
   const w = cv.width, h = cv.height;
   const thr = state.rec.threshold;
   ctx2d.fillStyle = state.recState === 'rec' ? '#d94c4c' : SCREEN_INK;
   ctx2d.globalAlpha = 0.8;
-  ctx2d.fillRect(0, h * 0.62, Math.min(1, state.recPeak / 0.5) * w, h * 0.16);
+  ctx2d.fillRect(0, h * 0.62, Math.min(1, peak / 0.5) * w, h * 0.16);
   ctx2d.globalAlpha = 1;
   ctx2d.fillStyle = '#ff7a1a';
   ctx2d.fillRect((thr / 0.5) * w, h * 0.56, 3, h * 0.28);
@@ -382,8 +388,9 @@ function loop() {
 
   const pd = sampler.padDef(state.bank, state.selPad);
   const s = pd ? sampler.samples.get(pd.sampleId) : null;
+  const mic = state.recArmed ? audio.getMicStats() : null;
 
-  if (state.recArmed) drawMeter(scope, sctx);
+  if (mic) drawMeter(scope, sctx, Math.max(state.recPeak, mic.an));
   else if (s) drawWave(scope, sctx, s, pd, false);
 
   if (state.trim && s) {
@@ -396,14 +403,17 @@ function loop() {
   $('#scrMode').textContent = state.recArmed
     ? (state.recState === 'rec' ? 'GRAVANDO' : 'AGUARDANDO SOM')
     : (state.trim ? 'TRIM' : MODE_NAME[state.mode]);
-  $('#scrName').textContent = s ? s.name : 'PAD ' + (state.selPad + 1) + ' vazio';
+  $('#scrName').textContent = mic
+    ? (mic.sr / 1000).toFixed(1) + 'k · ' + mic.state
+    : (s ? s.name : 'PAD ' + (state.selPad + 1) + ' vazio');
   $('#scrBank').textContent = 'BANCO ' + BANKS[state.bank];
   $('#scrBpm').textContent = state.recArmed
     ? state.rec.maxSec + 'S MÁX'
     : (pd ? (pd.pitch > 0 ? '+' : '') + pd.pitch.toFixed(1) + ' ST' : state.bpm.toFixed(1) + ' BPM');
   $('#scrHint').textContent = performance.now() < flashUntil
     ? flashText
-    : (state.levels16 ? '16 LEVELS · PAD ' + (state.selPad + 1)
+    : (mic ? 'PICO ' + state.recPeak.toFixed(2) + ' · AN ' + mic.an.toFixed(2) + ' · ' + mic.blocks + ' BL'
+      : state.levels16 ? '16 LEVELS · PAD ' + (state.selPad + 1)
       : state.shift ? 'segunda camada'
       : s ? 'PAD ' + (state.selPad + 1) : 'REC grava · SHIFT+16 importa');
 }
