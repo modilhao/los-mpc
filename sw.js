@@ -1,10 +1,11 @@
 /* Bumpar VERSION a cada release que o iPad precisa ver. */
-const VERSION = 'v0.1.0';
+const VERSION = 'v0.2.0';
 const CACHE = 'cabacitos-mpc-' + VERSION;
 const FILES = [
   './', './index.html', './manifest.json', './icon.svg',
   './css/app.css',
-  './js/main.js', './js/ui.js',
+  './js/main.js', './js/ui.js', './js/audio.js',
+  './js/sampler.js', './js/store.js', './js/tap-worklet.js',
 ];
 
 self.addEventListener('install', (e) => {
