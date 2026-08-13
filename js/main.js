@@ -25,7 +25,7 @@ const state = {
   recArmed: false,
   recState: 'wait',
   recPeak: 0,
-  rec: { threshold: 0.06, maxSec: 8 },
+  rec: { threshold: 0.03, maxSec: 8 },
 
   knobs: { k1: 0, k2: 1, k3: 0.5, k4: 0.7 },
 };
@@ -48,6 +48,18 @@ document.getElementById('app').addEventListener('pointerdown', () => {
   audio.setMasterVolume(state.vol);
   audio.ensureAudioRunning();
 }, true);
+
+/* O Safari do iPad ignora touch-action para zoom de dois toques e pinça.
+   Só preventDefault nos gestos nativos segura a tela. */
+['gesturestart', 'gesturechange', 'gestureend'].forEach((type) => {
+  document.addEventListener(type, (e) => e.preventDefault(), { passive: false });
+});
+let lastTouchEnd = 0;
+document.addEventListener('touchend', (e) => {
+  const now = Date.now();
+  if (now - lastTouchEnd <= 350) e.preventDefault();
+  lastTouchEnd = now;
+}, { passive: false });
 
 if ('serviceWorker' in navigator && location.protocol === 'https:') {
   let refreshing = false;

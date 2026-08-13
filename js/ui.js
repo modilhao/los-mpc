@@ -237,7 +237,12 @@ function setMode(mode) {
 function bindTransport() {
   $('#btnRec').addEventListener('pointerdown', onRec);
   $('#btnStop').addEventListener('pointerdown', () => {
-    if (state.recArmed) cancelRec();
+    /* No iPad a mão vai no STOP para encerrar — salvar se já gravou,
+       cancelar só se ainda estava esperando o limiar. */
+    if (state.recArmed) {
+      if (state.recState === 'rec') audio.stopCapture();
+      else cancelRec();
+    }
     sampler.stopAll();
   });
   $('#btnPlay').addEventListener('pointerdown', () => {
@@ -261,9 +266,8 @@ async function onRec() {
   if (st === 'nomic' || st === 'erro') return flash('SEM MICROFONE — precisa de https');
   if (st === 'suspenso') return flash('TOQUE REC DE NOVO');
 
-  const blocosAntes = audio.getMicStats().blocks;
   setTimeout(() => {
-    if (state.recArmed && audio.getMicStats().blocks === blocosAntes) flash('MIC SEM SINAL');
+    if (state.recArmed && audio.getMicStats().an < 0.001) flash('MIC SEM SINAL');
   }, 2000);
 
   state.recArmed = true;
@@ -415,7 +419,7 @@ function loop() {
     : (pd ? (pd.pitch > 0 ? '+' : '') + pd.pitch.toFixed(1) + ' ST' : state.bpm.toFixed(1) + ' BPM');
   $('#scrHint').textContent = performance.now() < flashUntil
     ? flashText
-    : (mic ? 'PICO ' + state.recPeak.toFixed(2) + ' · AN ' + mic.an.toFixed(2) + ' · ' + mic.blocks + ' BL'
+    : (mic ? 'PICO ' + Math.max(state.recPeak, mic.an).toFixed(2) + ' · REC p/ salvar'
       : state.levels16 ? '16 LEVELS · PAD ' + (state.selPad + 1)
       : state.shift ? 'segunda camada'
       : s ? 'PAD ' + (state.selPad + 1) : 'REC grava · SHIFT+16 importa');
