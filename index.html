@@ -1,0 +1,733 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="theme-color" content="#e6e5e1">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icon.svg">
+<title>Kit · Los Cabacitos</title>
+<style>
+  /* =========================================================
+     TOKENS — paleta Los Cabacitos (papel claro + encoders OP-1)
+     Não invente cor nova: escolha uma destas ou adicione aqui.
+     ========================================================= */
+  :root {
+    /* superfícies */
+    --body:   #e6e5e1;   /* fundo do aparelho (papel) */
+    --panel:  #efeeea;   /* botões, pads, lanes */
+    --line:   #c9c8c3;   /* borda padrão 1.5px */
+    --ink:    #2b2b28;   /* texto e estado ativo */
+    --dim:    #8a8a84;   /* texto secundário */
+
+    /* encoders — a ordem importa: k1 k2 k3 k4 */
+    --blue:   #3d9bf2;   /* k1 CTRL  */
+    --green:  #2fbf7b;   /* k2 PARAM */
+    --white:  #fafaf8;   /* k3 GLIDE */
+    --orange: #ff7a1a;   /* k4 VOL — também é a cor de "tocando/gravado" */
+
+    /* display */
+    --screen:     #1b1d1b;
+    --screen-ink: #d8ffe8;
+
+    /* teclado */
+    --keyw: #f7f6f3;
+    --keyb: #3a3a37;
+
+    /* estados */
+    --rec: #d94c4c;      /* gravação / destrutivo */
+
+    --radius:    10px;
+    --radius-sm: 7px;
+    --border:    1.5px;
+  }
+
+  * { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+  html, body {
+    height:100%; overflow:hidden; background:var(--body); color:var(--ink);
+    font-family: -apple-system, "Helvetica Neue", Helvetica, Arial, sans-serif;
+    touch-action:none; user-select:none; -webkit-user-select:none;
+  }
+  #app {
+    height:100%; display:flex; flex-direction:column; gap:7px;
+    padding: calc(8px + env(safe-area-inset-top)) calc(14px + env(safe-area-inset-right)) calc(10px + env(safe-area-inset-bottom)) calc(14px + env(safe-area-inset-left));
+  }
+
+  /* ---------- topo: marca + display ---------- */
+  #top { flex:0 0 auto; display:flex; gap:14px; align-items:stretch; }
+  #brand { display:flex; flex-direction:column; justify-content:space-between; padding:5px 0; }
+  #brand h1 { font-size:12px; font-weight:800; letter-spacing:.2em; line-height:1.35; }
+  #brand h1 span { color:var(--orange); }
+  #brand small { font-size:9px; letter-spacing:.18em; color:var(--dim); }
+
+  #screenWrap {
+    flex:1; background:var(--screen); border-radius:var(--radius); border:1px solid #14161422;
+    box-shadow: inset 0 2px 8px #0007; position:relative; min-height:78px; overflow:hidden;
+  }
+  #scope { position:absolute; inset:0; width:100%; height:100%; }
+  #screenType { position:absolute; top:7px; left:12px; font-size:12px; font-weight:800; letter-spacing:.2em; color:var(--screen-ink); }
+  #screenDesc { position:absolute; top:24px; left:12px; font-size:9px; letter-spacing:.08em; color:var(--screen-ink); opacity:.55; }
+  #screenNotes {
+    position:absolute; bottom:6px; left:12px; right:90px; font-size:11px; letter-spacing:.1em;
+    color:var(--screen-ink); opacity:.8; white-space:nowrap; overflow:hidden; font-variant-numeric:tabular-nums;
+  }
+  #screenOct { position:absolute; top:7px; right:12px; font-size:10px; letter-spacing:.14em; color:var(--screen-ink); opacity:.8; }
+  #screenFx  { position:absolute; bottom:6px; right:12px; font-size:9px; letter-spacing:.12em; color:#ffb361; opacity:0; }
+
+  /* ---------- seletor de engine ---------- */
+  #engines { flex:0 0 auto; display:grid; grid-template-columns:repeat(auto-fit, minmax(88px, 1fr)); gap:5px; }
+  .engine {
+    border:var(--border) solid var(--line); border-radius:9px; background:var(--panel);
+    padding:6px 4px 5px; cursor:pointer; position:relative;
+    display:flex; flex-direction:column; align-items:center; gap:2px;
+    transition: border-color .1s, background .1s;
+  }
+  .engine .num {
+    width:17px; height:17px; border-radius:50%; color:#fff;
+    font-size:9px; font-weight:800; display:flex; align-items:center; justify-content:center;
+  }
+  .engine b { font-size:10px; letter-spacing:.08em; }
+  .engine.sel { border-color:var(--ink); background:#fff; }
+  .engine .pdot { position:absolute; top:4px; right:5px; width:5px; height:5px; border-radius:50%; background:transparent; }
+  .engine.haspreset .pdot { background:var(--orange); }
+
+  /* ---------- botões ---------- */
+  .btn {
+    padding:8px 12px; border-radius:9px; border:var(--border) solid var(--line);
+    background:var(--panel); color:var(--ink); font-size:10px; font-weight:800;
+    letter-spacing:.12em; cursor:pointer; text-align:center;
+  }
+  .btn:active { background:#fff; border-color:var(--ink); }
+  .btn.active { background:var(--ink); color:var(--body); border-color:var(--ink); }
+
+  /* ---------- encoders ---------- */
+  #controls { flex:0 0 auto; display:flex; align-items:center; gap:10px; }
+  #encoders { display:flex; gap:4px; flex:1; justify-content:space-around; }
+  .knob { display:flex; flex-direction:column; align-items:center; touch-action:none; width:96px; }
+  .knob svg { width:76px; height:76px; }
+  .knob .kname { font-size:10px; font-weight:800; letter-spacing:.16em; }
+  .knob .ksub  { font-size:9px; color:var(--dim); letter-spacing:.03em; min-height:11px; text-align:center; }
+  .karc  { stroke:var(--line); stroke-width:7; fill:none; stroke-linecap:round; }
+  .kval  { stroke-width:7; fill:none; stroke-linecap:round; }
+  .kbody { stroke:#00000018; stroke-width:1; }
+  .kdot  { fill:var(--ink); }
+  .knob[data-color="white"] .kdot { fill:#555; }
+
+  #sideBtns { display:flex; flex-direction:column; gap:5px; min-width:132px; }
+  #octRow { display:flex; gap:5px; }
+  #octRow .btn { flex:1; font-size:13px; padding:5px 0; }
+
+  /* ---------- teclado ---------- */
+  #kbd { flex:1 1 auto; position:relative; min-height:0; }
+  .wkey, .bkey {
+    position:absolute; border-radius:var(--radius); cursor:pointer;
+    display:flex; align-items:flex-end; justify-content:center; padding-bottom:8px;
+    font-size:10px; font-weight:700; letter-spacing:.08em;
+  }
+  .wkey {
+    background:var(--keyw); border:var(--border) solid var(--line); color:var(--dim);
+    top:34%; bottom:0; box-shadow: 0 2px 0 #00000012;
+  }
+  .bkey {
+    background:var(--keyb); border:var(--border) solid #262624; color:#b5b5af;
+    top:0; height:30%; box-shadow: 0 2px 0 #0003; z-index:2;
+  }
+  .wkey.down { background:#fff; border-color:var(--ink); color:var(--ink); transform:translateY(1px); }
+  .bkey.down { background:#555550; transform:translateY(1px); }
+  .wkey.c-note { color:var(--ink); }
+</style>
+</head>
+<body>
+<div id="app">
+
+  <div id="top">
+    <div id="brand">
+      <h1>LOS<br>CABA<span>·</span>CITOS</h1>
+      <small>KIT</small>
+    </div>
+    <div id="screenWrap">
+      <canvas id="scope"></canvas>
+      <div id="screenType"></div>
+      <div id="screenDesc"></div>
+      <div id="screenNotes">toque para começar</div>
+      <div id="screenOct"></div>
+      <div id="screenFx">FX</div>
+    </div>
+  </div>
+
+  <div id="engines"></div>
+
+  <div id="controls">
+    <div id="encoders">
+      <div class="knob" data-k="k1" data-color="blue"><svg></svg><div class="kname">CTRL</div><div class="ksub"></div></div>
+      <div class="knob" data-k="k2" data-color="green"><svg></svg><div class="kname">PARAM</div><div class="ksub"></div></div>
+      <div class="knob" data-k="k3" data-color="white"><svg></svg><div class="kname">GLIDE</div><div class="ksub"></div></div>
+      <div class="knob" data-k="k4" data-color="orange"><svg></svg><div class="kname">VOL</div><div class="ksub"></div></div>
+    </div>
+    <div id="sideBtns">
+      <div class="btn" id="fxBtn">FX</div>
+      <div id="octRow">
+        <div class="btn" id="octDown">−</div>
+        <div class="btn" id="octUp">+</div>
+      </div>
+      <div class="btn" id="saveBtn">SALVAR</div>
+    </div>
+  </div>
+
+  <div id="kbd"></div>
+</div>
+
+<script>
+'use strict';
+
+/* =========================================================
+   0. UTILIDADES
+   ========================================================= */
+const $ = (s) => document.querySelector(s);
+const clamp  = (v, a, b) => Math.max(a, Math.min(b, v));
+const expmap = (v, a, b) => a * Math.pow(b / a, clamp(v, 0, 1));
+const midiToFreq = (m) => 440 * Math.pow(2, (m - 69) / 12);
+const NOTES = ['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'];
+const midiToName = (m) => NOTES[m % 12] + (Math.floor(m / 12) - 1);
+/* volume perceptual: linear no knob soa errado, quadrático soa certo */
+const volGain = (v) => Math.pow(v, 2) * 0.9;
+
+const COLORS = { blue:'#3d9bf2', green:'#2fbf7b', white:'#fafaf8', orange:'#ff7a1a' };
+
+/* =========================================================
+   1. ENGINES — é aqui que um instrumento novo nasce
+   Cada engine descreve timbre + o que os knobs CTRL/PARAM fazem.
+   mode: 'analog' (2 osc) | 'fm' (osc1 modulado por modOsc)
+   params(p) devolve, a partir dos knobs 0..1:
+     osc2Lvl  nível do segundo oscilador
+     base     cutoff do lowpass em Hz
+     q        ressonância
+     envOct   quantas oitavas o envelope de filtro abre no ataque
+     decay    tempo de fechamento do filtro (s)
+     atk/rel  constantes de tempo do amp (s) — nunca 0, senão estala
+     detune   desafinação do osc2 em cents (opcional)
+     fmIndex / fmRatio  só no mode 'fm'
+   ========================================================= */
+const FM_RATIOS = [0.5, 1, 1.5, 2, 3, 4];
+
+const ENGINES = [
+  { id:'SUB', desc:'sub-oitava redondo', color:COLORS.blue, mode:'analog',
+    osc1:{ wave:'square', oct:0, lvl:0.30 }, osc2:{ wave:'sine', oct:-1 },
+    ctrlLabel:'volume do sub', paramLabel:'cutoff',
+    defaults:{ k1:0.7, k2:0.6, k3:0.25, k4:0.7 },
+    params(p){ return { osc2Lvl:p.k1 * 0.95, base:expmap(p.k2, 90, 2600), q:0.9,
+                        envOct:0.6, decay:0.18, atk:0.004, rel:0.07 }; } },
+
+  { id:'DRONE', desc:'nuvem de saws, ataque lento', color:'#7f8cf2', mode:'analog',
+    osc1:{ wave:'sawtooth', oct:0, lvl:0.28 }, osc2:{ wave:'sawtooth', oct:0 },
+    ctrlLabel:'desafinação', paramLabel:'cutoff',
+    defaults:{ k1:0.5, k2:0.5, k3:0.5, k4:0.6 },
+    params(p){ return { osc2Lvl:0.28, base:expmap(p.k2, 120, 3200), q:1.2,
+                        envOct:0.3, decay:0.5, atk:0.12, rel:0.5, detune:p.k1 * 45 }; } },
+
+  { id:'FM', desc:'baixo FM profundo', color:'#f2c94c', mode:'fm',
+    osc1:{ wave:'sine', oct:0, lvl:0.5 }, osc2:{ wave:'sine', oct:-1 },
+    ctrlLabel:'índice (brilho)', paramLabel:'ratio do modulador',
+    defaults:{ k1:0.45, k2:0.35, k3:0.2, k4:0.7 },
+    params(p){ return { osc2Lvl:0.35, base:5200, q:0.7, envOct:0, decay:0.15, atk:0.004, rel:0.09,
+                        fmIndex:p.k1 * 9,
+                        fmRatio:FM_RATIOS[Math.min(FM_RATIOS.length - 1, Math.floor(p.k2 * FM_RATIOS.length))] }; } },
+];
+
+/* =========================================================
+   2. ESTADO + PERSISTÊNCIA
+   localStorage guarda presets, FX e onde você parou.
+   Samples e áudio longo vão pra IndexedDB (ver STACK.md).
+   ========================================================= */
+const APP_ID = 'cabacitos-kit';
+const K_PRESETS = APP_ID + ':presets';
+const K_FX      = APP_ID + ':fx';
+const K_SESSION = APP_ID + ':session';
+
+const NVOICES = 8;
+
+const presets = JSON.parse(localStorage.getItem(K_PRESETS) || '{}');
+const session = JSON.parse(localStorage.getItem(K_SESSION) || '{}');
+
+const state = {
+  running: false,
+  engineIdx: clamp(session.engineIdx | 0, 0, ENGINES.length - 1),
+  octBase: session.octBase || 36,            // C2 — instrumento grave
+  knobMode: 'synth',                          // 'synth' | 'fx'
+  knobs: {},
+  fx: { k1:0, k2:0, k3:0.18, k4:0 },
+};
+Object.assign(state.knobs, presets[ENGINES[state.engineIdx].id] || ENGINES[state.engineIdx].defaults);
+try { Object.assign(state.fx, JSON.parse(localStorage.getItem(K_FX) || '{}')); } catch(e){}
+
+const saveSession = () => localStorage.setItem(K_SESSION,
+  JSON.stringify({ engineIdx: state.engineIdx, octBase: state.octBase }));
+
+/* =========================================================
+   3. GRAFO DE ÁUDIO
+   vozes → busIn → master → DRIVE → PHASER → DELAY → REVERB → comp → saída
+   Tudo pré-alocado no start: nada de montar grafo por nota.
+   ========================================================= */
+let ctx, busIn, master, outSum, comp, analyser;
+let driveShaper, phIn, phSum, phDepth, phLFO, dSend, dNode, dFb, dDamp, revSend, convolver;
+const phAps = [];
+const voices = [];
+let seq = 0, curP = null, wakeSentinel = null;
+
+function makeDriveCurve(g){
+  const n = 2048, c = new Float32Array(n), norm = Math.tanh(g);
+  for (let i = 0; i < n; i++) c[i] = Math.tanh(g * (i / (n - 1) * 2 - 1)) / norm;
+  return c;
+}
+/* IR sintética: ruído com decaimento exponencial — reverb sem baixar arquivo */
+function makeReverbIR(secs){
+  const rate = ctx.sampleRate, len = Math.floor(secs * rate);
+  const buf = ctx.createBuffer(2, len, rate);
+  for (let ch = 0; ch < 2; ch++) {
+    const d = buf.getChannelData(ch);
+    let s = 1234567 + ch * 999;
+    for (let i = 0; i < len; i++) {
+      s = (s * 1103515245 + 12345) & 0x7fffffff;
+      d[i] = (s / 0x7fffffff * 2 - 1) * Math.pow(1 - i / len, 2.6);
+    }
+  }
+  return buf;
+}
+
+function startAudio(){
+  if (state.running) return;
+  ctx = new (window.AudioContext || window.webkitAudioContext)({ latencyHint:'interactive' });
+
+  // saída: compressor segura os picos do delay/reverb somados
+  outSum = ctx.createGain();
+  comp = ctx.createDynamicsCompressor();
+  comp.threshold.value = -10; comp.ratio.value = 5; comp.attack.value = 0.002; comp.release.value = 0.12;
+  analyser = ctx.createAnalyser(); analyser.fftSize = 1024;
+  outSum.connect(comp).connect(analyser).connect(ctx.destination);
+
+  master = ctx.createGain(); master.gain.value = volGain(state.knobs.k4);
+
+  // DRIVE (waveshaper tanh)
+  driveShaper = ctx.createWaveShaper();
+  driveShaper.curve = makeDriveCurve(1); driveShaper.oversample = '2x';
+  master.connect(driveShaper);
+
+  // PHASER: dry + 4 allpass varridos por LFO
+  phIn = ctx.createGain(); driveShaper.connect(phIn);
+  phSum = ctx.createGain();
+  phIn.connect(phSum);
+  let prev = phIn;
+  for (let i = 0; i < 4; i++) {
+    const ap = ctx.createBiquadFilter();
+    ap.type = 'allpass'; ap.frequency.value = 300 + i * 400; ap.Q.value = 0.6;
+    prev.connect(ap); prev = ap; phAps.push(ap);
+  }
+  phDepth = ctx.createGain(); phDepth.gain.value = 0;
+  prev.connect(phDepth).connect(phSum);
+  phLFO = ctx.createOscillator(); phLFO.type = 'sine'; phLFO.frequency.value = 0.4;
+  const phLfoGain = ctx.createGain(); phLfoGain.gain.value = 450;
+  phLFO.connect(phLfoGain);
+  phAps.forEach(ap => phLfoGain.connect(ap.frequency));
+  phLFO.start();
+
+  // DELAY de fita: lowpass dentro do feedback escurece cada repetição
+  const mixA = ctx.createGain(); phSum.connect(mixA);
+  dSend = ctx.createGain(); dSend.gain.value = 0;
+  dNode = ctx.createDelay(1.2); dNode.delayTime.value = 0.38;
+  dFb   = ctx.createGain(); dFb.gain.value = 0.3;
+  dDamp = ctx.createBiquadFilter(); dDamp.type = 'lowpass'; dDamp.frequency.value = 2200;
+  phSum.connect(dSend).connect(dNode);
+  dNode.connect(dDamp).connect(dFb).connect(dNode);
+  dNode.connect(mixA);
+
+  // REVERB por convolução
+  convolver = ctx.createConvolver(); convolver.buffer = makeReverbIR(3.2);
+  revSend = ctx.createGain(); revSend.gain.value = 0;
+  mixA.connect(outSum);
+  mixA.connect(revSend).connect(convolver).connect(outSum);
+
+  busIn = ctx.createGain(); busIn.connect(master);
+
+  // vozes pré-alocadas: osciladores nascem aqui e nunca param
+  for (let i = 0; i < NVOICES; i++) {
+    const v = {};
+    v.filter = ctx.createBiquadFilter(); v.filter.type = 'lowpass'; v.filter.Q.value = 1;
+    v.amp = ctx.createGain(); v.amp.gain.value = 0;
+    v.filter.connect(v.amp).connect(busIn);
+    v.g1 = ctx.createGain(); v.g1.gain.value = 0; v.g1.connect(v.filter);
+    v.g2 = ctx.createGain(); v.g2.gain.value = 0; v.g2.connect(v.filter);
+    v.osc1 = ctx.createOscillator(); v.osc1.type = 'sawtooth'; v.osc1.frequency.value = 110; v.osc1.connect(v.g1); v.osc1.start();
+    v.osc2 = ctx.createOscillator(); v.osc2.type = 'sine';     v.osc2.frequency.value = 55;  v.osc2.connect(v.g2); v.osc2.start();
+    v.modOsc = ctx.createOscillator(); v.modOsc.type = 'sine'; v.modOsc.frequency.value = 110;
+    v.modGain = ctx.createGain(); v.modGain.gain.value = 0;
+    v.modOsc.connect(v.modGain).connect(v.osc1.frequency); v.modOsc.start();
+    v.busy = false; v.pointerId = null; v.midi = -1; v.stamp = 0;
+    voices.push(v);
+  }
+
+  state.running = true;
+  ctx.addEventListener('statechange', () => {
+    if (ctx.state !== 'running' && document.visibilityState === 'visible') ensureAudioRunning();
+  });
+  requestWake();
+  applyEngine();
+  applyFx();
+}
+
+/* =========================================================
+   4. VOZES — alocação, nota, glide, release
+   ========================================================= */
+function allocVoice(pointerId){
+  let v = voices.find(x => !x.busy);
+  if (!v) { v = voices.reduce((a, b) => (a.stamp < b.stamp ? a : b)); releaseVoice(v, true); }
+  v.busy = true; v.pointerId = pointerId; v.stamp = ++seq;
+  return v;
+}
+const voiceByPointer = (id) => voices.find(x => x.busy && x.pointerId === id);
+
+function setVoiceFreq(v, midi, tau){
+  const e = ENGINES[state.engineIdx], t = ctx.currentTime, f = midiToFreq(midi);
+  v.osc1.frequency.setTargetAtTime(f * Math.pow(2, e.osc1.oct), t, tau);
+  v.osc2.frequency.setTargetAtTime(f * Math.pow(2, e.osc2.oct), t, tau);
+  if (e.mode === 'fm') {
+    v.modOsc.frequency.setTargetAtTime(f * curP.fmRatio, t, tau);
+    v.modGain.gain.setTargetAtTime(f * curP.fmIndex, t, tau);
+  }
+}
+
+function noteOn(v, midi){
+  const p = curP, t = ctx.currentTime;
+  v.midi = midi;
+  setVoiceFreq(v, midi, 0.003);
+  // envelope de filtro: abre envOct oitavas e fecha em decay
+  const peak = clamp(p.base * Math.pow(2, p.envOct), 40, 12000);
+  v.filter.frequency.cancelScheduledValues(t);
+  v.filter.frequency.setValueAtTime(peak, t);
+  v.filter.frequency.setTargetAtTime(p.base, t + 0.008, Math.max(0.02, p.decay / 3));
+  // amp: sempre com rampa — atacar em degrau produz clique
+  v.amp.gain.cancelScheduledValues(t);
+  v.amp.gain.setTargetAtTime(1, t, Math.max(0.002, p.atk));
+}
+
+/* portamento por dedo: arrastar entre teclas desliza o pitch */
+function noteGlide(v, midi){
+  v.midi = midi;
+  const g = state.knobs.k3;
+  setVoiceFreq(v, midi, g < 0.02 ? 0.004 : expmap(g, 0.006, 0.30));
+}
+
+function releaseVoice(v, fast){
+  if (!v.busy) return;
+  const t = ctx.currentTime;
+  v.amp.gain.cancelScheduledValues(t);
+  v.amp.gain.setTargetAtTime(0, t, fast ? 0.004 : Math.max(0.008, curP.rel));
+  v.busy = false; v.pointerId = null; v.midi = -1;
+}
+
+/* =========================================================
+   5. CICLO DE VIDA (iOS) — sem isto o som some ao voltar pro app
+   ========================================================= */
+function requestWake(){
+  try {
+    if (!navigator.wakeLock) return;
+    navigator.wakeLock.request('screen').then(l => { wakeSentinel = l; }).catch(() => {});
+  } catch(e){}
+}
+async function ensureAudioRunning(){
+  if (!ctx) return false;
+  if (ctx.state === 'suspended' || ctx.state === 'interrupted') {
+    try { await ctx.resume(); } catch(e){}
+  }
+  return ctx.state === 'running';
+}
+async function onAppForeground(){
+  if (!state.running) return;
+  if (!await ensureAudioRunning()) return;
+  requestWake();
+  // Se o app tiver sequencer ou BufferSources (tape/sampler), reconstrua aqui:
+  // os BufferSources morrem no suspend e o clock precisa ser realinhado.
+}
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible') onAppForeground();
+});
+window.addEventListener('pageshow', onAppForeground);
+window.addEventListener('focus', onAppForeground);
+
+/* =========================================================
+   6. APLICAR PARÂMETROS
+   Toda mudança usa setTargetAtTime: atribuir .value durante o som
+   produz zipper noise (degrau audível).
+   ========================================================= */
+function applyEngine(){
+  const e = ENGINES[state.engineIdx];
+  $('#screenType').textContent = e.id;
+  $('#screenType').style.color = e.color;
+  $('#screenDesc').textContent = e.desc;
+  document.querySelectorAll('.engine').forEach(el =>
+    el.classList.toggle('sel', +el.dataset.ei === state.engineIdx));
+  updateKnobLabels();
+  for (const v of voices) { v.osc1.type = e.osc1.wave; v.osc2.type = e.osc2.wave; }
+  applyParams();
+}
+
+function applyParams(){
+  const e = ENGINES[state.engineIdx];
+  curP = e.params(state.knobs);
+  if (!state.running) return;
+  const p = curP, t = ctx.currentTime;
+  master.gain.setTargetAtTime(volGain(state.knobs.k4), t, 0.02);
+  for (const v of voices) {
+    v.g1.gain.setTargetAtTime(e.osc1.lvl, t, 0.02);
+    v.g2.gain.setTargetAtTime(p.osc2Lvl * 0.9, t, 0.02);
+    v.filter.Q.setTargetAtTime(p.q, t, 0.02);
+    if (!v.busy) v.filter.frequency.setTargetAtTime(p.base, t, 0.05);
+    v.osc2.detune.setTargetAtTime(p.detune || 0, t, 0.05);
+    v.osc1.detune.setTargetAtTime(p.detune ? -p.detune * 0.5 : 0, t, 0.05);
+    if (e.mode === 'fm' && v.busy && v.midi > 0) {
+      const f = midiToFreq(v.midi);
+      v.modOsc.frequency.setTargetAtTime(f * p.fmRatio, t, 0.02);
+      v.modGain.gain.setTargetAtTime(f * p.fmIndex, t, 0.02);
+    } else if (e.mode !== 'fm') {
+      v.modGain.gain.setTargetAtTime(0, t, 0.02);
+    }
+  }
+}
+
+function applyFx(){
+  const fx = state.fx;
+  localStorage.setItem(K_FX, JSON.stringify(fx));
+  $('#screenFx').style.opacity = (fx.k1 > 0.05 || fx.k2 > 0.05 || fx.k3 > 0.22 || fx.k4 > 0.05) ? 0.9 : 0;
+  if (!state.running) return;
+  const t = ctx.currentTime;
+  dSend.gain.setTargetAtTime(fx.k1 * 0.9, t, 0.03);          // mix e feedback juntos:
+  dFb.gain.setTargetAtTime(0.15 + fx.k1 * 0.62, t, 0.03);    // um knob só, no talo vira dub
+  phDepth.gain.setTargetAtTime(fx.k2 * 0.95, t, 0.03);
+  phLFO.frequency.setTargetAtTime(0.12 + fx.k2 * 1.1, t, 0.03);
+  revSend.gain.setTargetAtTime(fx.k3 * 0.95, t, 0.03);
+  driveShaper.curve = makeDriveCurve(1 + fx.k4 * 24);
+}
+
+/* =========================================================
+   7. UI — engines, encoders, teclado
+   ========================================================= */
+const enginesEl = $('#engines');
+ENGINES.forEach((e, i) => {
+  const el = document.createElement('div');
+  el.className = 'engine';
+  el.dataset.ei = i;
+  el.innerHTML = `<div class="pdot"></div><div class="num" style="background:${e.color}">${i + 1}</div><b>${e.id}</b>`;
+  el.addEventListener('pointerdown', (ev) => { ev.stopPropagation(); selectEngine(i); });
+  enginesEl.appendChild(el);
+});
+function markPresets(){
+  document.querySelectorAll('.engine').forEach(el =>
+    el.classList.toggle('haspreset', !!presets[ENGINES[+el.dataset.ei].id]));
+}
+function selectEngine(i){
+  state.engineIdx = i;
+  const e = ENGINES[i];
+  state.knobs = { ...(presets[e.id] || e.defaults) };
+  if (state.knobMode === 'fx') setKnobMode('synth');
+  saveSession();
+  applyEngine();
+  drawAllKnobs();
+}
+
+/* ---- encoders: arrastar na vertical, 140px = curso completo ---- */
+const KNOB_LABELS = {
+  synth: { k1:'CTRL', k2:'PARAM', k3:'GLIDE', k4:'VOL' },
+  fx:    { k1:'DELAY', k2:'PHASER', k3:'REVERB', k4:'DRIVE' },
+};
+const knobStore = () => state.knobMode === 'fx' ? state.fx : state.knobs;
+
+function updateKnobLabels(){
+  const e = ENGINES[state.engineIdx], fxMode = state.knobMode === 'fx';
+  const subs = fxMode
+    ? { k1:'tempo + repetições', k2:'profundidade', k3:'cauda', k4:'saturação' }
+    : { k1:e.ctrlLabel, k2:e.paramLabel, k3:'portamento', k4:'volume' };
+  document.querySelectorAll('.knob').forEach(el => {
+    const k = el.dataset.k;
+    el.querySelector('.kname').textContent = KNOB_LABELS[state.knobMode][k];
+    el.querySelector('.ksub').textContent = subs[k];
+  });
+}
+
+const A0 = 135; // 135° → 405°: 270° de curso, com a "boca" pra baixo
+function knobArc(cx, cy, r, a0deg, a1deg){
+  const a0 = a0deg * Math.PI / 180, a1 = a1deg * Math.PI / 180;
+  const large = (a1deg - a0deg) > 180 ? 1 : 0;
+  return `M ${cx + r * Math.cos(a0)} ${cy + r * Math.sin(a0)} A ${r} ${r} 0 ${large} 1 ${cx + r * Math.cos(a1)} ${cy + r * Math.sin(a1)}`;
+}
+function drawKnob(el){
+  const k = el.dataset.k, color = COLORS[el.dataset.color];
+  const v = knobStore()[k];
+  const svg = el.querySelector('svg');
+  svg.setAttribute('viewBox', '0 0 76 76');
+  const aV = A0 + 270 * v, aDot = aV * Math.PI / 180;
+  svg.innerHTML =
+    `<circle class="kbody" cx="38" cy="38" r="25" fill="${color}"/>` +
+    `<path class="karc" d="${knobArc(38, 38, 33, A0, 405)}"/>` +
+    (v > 0.005 ? `<path class="kval" stroke="${el.dataset.color === 'white' ? '#8a8a84' : color}" d="${knobArc(38, 38, 33, A0, aV)}"/>` : '') +
+    `<circle class="kdot" cx="${38 + 17 * Math.cos(aDot)}" cy="${38 + 17 * Math.sin(aDot)}" r="3.4"/>`;
+}
+const drawAllKnobs = () => document.querySelectorAll('.knob').forEach(drawKnob);
+
+document.querySelectorAll('.knob').forEach(el => {
+  const k = el.dataset.k;
+  let startY = 0, startV = 0, dragging = false;
+  el.addEventListener('pointerdown', (e) => {
+    dragging = true; startY = e.clientY; startV = knobStore()[k];
+    el.setPointerCapture(e.pointerId);
+    e.stopPropagation();
+  });
+  el.addEventListener('pointermove', (e) => {
+    if (!dragging) return;
+    knobStore()[k] = clamp(startV + (startY - e.clientY) / 140, 0, 1);
+    drawKnob(el);
+    state.knobMode === 'fx' ? applyFx() : applyParams();
+  });
+  el.addEventListener('pointerup', () => { dragging = false; });
+  el.addEventListener('pointercancel', () => { dragging = false; });
+});
+
+/* FX não é uma tela nova: são os mesmos 4 knobs em outro contexto (jeito OP-1) */
+function setKnobMode(m){
+  state.knobMode = m;
+  $('#fxBtn').classList.toggle('active', m === 'fx');
+  updateKnobLabels();
+  drawAllKnobs();
+}
+$('#fxBtn').addEventListener('pointerdown', () => setKnobMode(state.knobMode === 'fx' ? 'synth' : 'fx'));
+
+/* ---- teclado ---- */
+const kbd = $('#kbd');
+const NOCT = 2;
+const WHITE_STEPS = [0, 2, 4, 5, 7, 9, 11];
+const BLACK_STEPS = { 1:0, 3:1, 6:3, 8:4, 10:5 };
+const downKeys = new Map();
+
+function buildKeyboard(){
+  kbd.innerHTML = '';
+  const nWhite = NOCT * 7 + 1, ww = 100 / nWhite;
+  for (let o = 0; o <= NOCT; o++) {
+    for (let s = 0; s < 12; s++) {
+      if (o === NOCT && s > 0) break;
+      const el = document.createElement('div');
+      el.dataset.midi = state.octBase + o * 12 + s;
+      if (WHITE_STEPS.includes(s)) {
+        const wIdx = o * 7 + WHITE_STEPS.indexOf(s);
+        el.className = 'wkey' + (s === 0 ? ' c-note' : '');
+        el.style.left = (wIdx * ww) + '%';
+        el.style.width = `calc(${ww}% - 4px)`;
+        if (s === 0) el.textContent = midiToName(+el.dataset.midi);
+      } else {
+        const wIdx = o * 7 + BLACK_STEPS[s];
+        el.className = 'bkey';
+        el.style.left = `calc(${(wIdx + 1) * ww}% - ${ww * 0.30}%)`;
+        el.style.width = (ww * 0.60) + '%';
+      }
+      kbd.appendChild(el);
+    }
+  }
+  $('#screenOct').textContent = 'OCT ' + midiToName(state.octBase);
+}
+
+/* elementFromPoint em vez de eventos por tecla: permite glissando arrastando */
+function keyFromPoint(x, y){
+  const el = document.elementFromPoint(x, y);
+  return (el && el.dataset && el.dataset.midi) ? el : null;
+}
+
+kbd.addEventListener('pointerdown', (e) => {
+  const key = keyFromPoint(e.clientX, e.clientY);
+  if (!key) return;
+  kbd.setPointerCapture(e.pointerId);
+  noteOn(allocVoice(e.pointerId), +key.dataset.midi);
+  key.classList.add('down');
+  downKeys.set(e.pointerId, key);
+});
+kbd.addEventListener('pointermove', (e) => {
+  const v = voiceByPointer(e.pointerId);
+  if (!v) return;
+  const key = keyFromPoint(e.clientX, e.clientY);
+  if (!key || +key.dataset.midi === v.midi) return;
+  const prev = downKeys.get(e.pointerId);
+  if (prev) prev.classList.remove('down');
+  noteGlide(v, +key.dataset.midi);
+  key.classList.add('down');
+  downKeys.set(e.pointerId, key);
+});
+function endPointer(e){
+  const v = voiceByPointer(e.pointerId);
+  if (v) releaseVoice(v, false);
+  const key = downKeys.get(e.pointerId);
+  if (key) key.classList.remove('down');
+  downKeys.delete(e.pointerId);
+}
+kbd.addEventListener('pointerup', endPointer);
+kbd.addEventListener('pointercancel', endPointer);
+
+$('#octDown').addEventListener('pointerdown', () => { setOct(state.octBase - 12); });
+$('#octUp').addEventListener('pointerdown',   () => { setOct(state.octBase + 12); });
+function setOct(m){
+  state.octBase = clamp(m, 12, 84);
+  saveSession();
+  buildKeyboard();
+}
+
+$('#saveBtn').addEventListener('pointerdown', () => {
+  presets[ENGINES[state.engineIdx].id] = { ...state.knobs };
+  localStorage.setItem(K_PRESETS, JSON.stringify(presets));
+  markPresets();
+});
+
+/* =========================================================
+   8. DISPLAY — osciloscópio na cor do engine
+   ========================================================= */
+const scope = $('#scope');
+const sctx = scope.getContext('2d');
+const wave = new Float32Array(1024);
+
+function drawScope(){
+  requestAnimationFrame(drawScope);
+  const w = scope.clientWidth, h = scope.clientHeight;
+  if (scope.width !== w * 2) { scope.width = w * 2; scope.height = h * 2; }
+  sctx.clearRect(0, 0, scope.width, scope.height);
+  if (!analyser) return;
+  analyser.getFloatTimeDomainData(wave);
+  sctx.beginPath();
+  sctx.strokeStyle = ENGINES[state.engineIdx].color;
+  sctx.lineWidth = 2.5;
+  for (let i = 0; i < wave.length; i++) {
+    const x = i / (wave.length - 1) * scope.width;
+    const y = scope.height / 2 - wave[i] * scope.height * 0.42;
+    i === 0 ? sctx.moveTo(x, y) : sctx.lineTo(x, y);
+  }
+  sctx.stroke();
+  const held = voices.filter(v => v.busy).sort((a, b) => a.midi - b.midi).map(v => midiToName(v.midi));
+  $('#screenNotes').textContent = held.length ? held.join('  ') : '';
+}
+
+/* =========================================================
+   9. BOOT
+   O AudioContext só pode nascer dentro de um gesto do usuário:
+   qualquer toque no app serve (fase de captura, antes dos handlers).
+   ========================================================= */
+$('#app').addEventListener('pointerdown', () => {
+  if (!state.running) startAudio(); else ensureAudioRunning();
+}, true);
+
+buildKeyboard();
+applyEngine();
+drawAllKnobs();
+markPresets();
+drawScope();
+
+if ('serviceWorker' in navigator && location.protocol === 'https:') {
+  navigator.serviceWorker.register('sw.js');
+}
+</script>
+</body>
+</html>
