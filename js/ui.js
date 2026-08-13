@@ -286,14 +286,6 @@ async function onRec() {
   });
 }
 
-function cancelRec() {
-  audio.cancelCapture();
-  state.recArmed = false;
-  state.recPeak = 0;
-  $('#btnRec').classList.remove('armed');
-  updateKnobLabels();
-}
-
 /* ---------- importar arquivo ---------- */
 function bindImport() {
   $('#fileIn').addEventListener('change', async (e) => {
