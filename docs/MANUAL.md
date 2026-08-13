@@ -1,6 +1,8 @@
 # Los Cabacitos MPC — Manual de palco
 
-**v3.0.0** · [Abrir o app](https://los-mpc.vercel.app)
+**v3.0.1** · [Abrir o app](https://los-mpc.vercel.app) · [Manual HTML](https://los-mpc.vercel.app/manual.html)
+
+> A versão tocável no iPad é o HTML: toque **MPC · MANUAL** na marca do aparelho.
 
 Uma caixa que grava o mundo pelo microfone do iPad, corta em 16 pads e vira música. Sem login, sem pasta de projeto, sem manual de 80 páginas — este aqui cabe num ensaio.
 

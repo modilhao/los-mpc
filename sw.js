@@ -1,9 +1,9 @@
 /* Bumpar VERSION a cada release que o iPad precisa ver. */
-const VERSION = 'v3.0.0';
+const VERSION = 'v3.0.1';
 const CACHE = 'cabacitos-mpc-' + VERSION;
 const FILES = [
-  './', './index.html', './manifest.json', './icon.svg',
-  './css/app.css',
+  './', './index.html', './manual.html', './manifest.json', './icon.svg',
+  './css/app.css', './css/manual.css',
   './js/main.js', './js/ui.js', './js/audio.js',
   './js/sampler.js', './js/store.js', './js/seq.js', './js/tap-worklet.js',
 ];

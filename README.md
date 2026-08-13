@@ -3,7 +3,8 @@
 Sampler / groovebox pra iPad: 16 pads, microfone, chop, sequenciador com note repeat e KNOB FX. Sem build, sem login.
 
 **App:** [los-mpc.vercel.app](https://los-mpc.vercel.app)  
-**Manual + tutoriais do repertório:** [docs/MANUAL.md](docs/MANUAL.md)
+**Manual (no app):** [los-mpc.vercel.app/manual.html](https://los-mpc.vercel.app/manual.html) — também pelo link vermelho na marca  
+**Fonte em Markdown:** [docs/MANUAL.md](docs/MANUAL.md)
 
 ## Rodar local
 

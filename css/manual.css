@@ -1,0 +1,300 @@
+/* Manual de palco — mesmos tokens do MPC, tipografia de leitura. */
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@500;600&family=IBM+Plex+Sans:ital,wght@0,400;0,600;0,700;1,400&display=swap');
+
+:root {
+  --body: #e6e5e1;
+  --panel: #efeeea;
+  --line: #c9c8c3;
+  --ink: #2b2b28;
+  --dim: #8a8a84;
+  --blue: #3d9bf2;
+  --green: #2fbf7b;
+  --orange: #ff7a1a;
+  --cyan: #4ec8e8;
+  --rec: #d94c4c;
+  --screen: #1b1d1b;
+  --screen-ink: #d8ffe8;
+  --radius: 10px;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+html {
+  scroll-behavior: smooth;
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  background:
+    radial-gradient(ellipse 80% 50% at 10% -10%, #fff8 0%, transparent 50%),
+    radial-gradient(ellipse 60% 40% at 100% 0%, #ff7a1a14 0%, transparent 45%),
+    var(--body);
+  color: var(--ink);
+  font-family: "IBM Plex Sans", "Helvetica Neue", sans-serif;
+  font-size: 17px;
+  line-height: 1.55;
+  padding:
+    calc(56px + env(safe-area-inset-top))
+    calc(18px + env(safe-area-inset-right))
+    calc(48px + env(safe-area-inset-bottom))
+    calc(18px + env(safe-area-inset-left));
+}
+
+.bar {
+  position: fixed;
+  top: 0; left: 0; right: 0;
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding:
+    calc(10px + env(safe-area-inset-top))
+    calc(14px + env(safe-area-inset-right))
+    10px
+    calc(14px + env(safe-area-inset-left));
+  background: color-mix(in srgb, var(--body) 88%, transparent);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border-bottom: 1.5px solid var(--line);
+}
+
+.back, .cta {
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-decoration: none;
+  color: #fff;
+  background: var(--ink);
+  padding: 8px 12px;
+  border-radius: 7px;
+}
+
+.bar-title {
+  flex: 1;
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.18em;
+  color: var(--dim);
+}
+
+.bar-ver {
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 11px;
+  color: var(--orange);
+  font-weight: 600;
+}
+
+main {
+  max-width: 720px;
+  margin: 0 auto;
+}
+
+.hero {
+  padding: 28px 0 8px;
+}
+
+.eyebrow {
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 11px;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--orange);
+  font-weight: 600;
+  margin-bottom: 12px;
+}
+
+.hero h1 {
+  font-size: clamp(1.7rem, 4.5vw, 2.35rem);
+  line-height: 1.15;
+  letter-spacing: -0.02em;
+  font-weight: 700;
+  margin-bottom: 14px;
+  max-width: 18ch;
+}
+
+.lede {
+  color: var(--dim);
+  font-size: 1.05rem;
+  max-width: 36ch;
+}
+
+.lede-sm { color: var(--dim); margin-bottom: 18px; }
+
+.toc {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 22px 0 8px;
+  position: sticky;
+  top: calc(52px + env(safe-area-inset-top));
+  z-index: 10;
+  padding: 8px 0;
+  background: color-mix(in srgb, var(--body) 92%, transparent);
+  backdrop-filter: blur(8px);
+}
+
+.toc a {
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  text-decoration: none;
+  color: var(--ink);
+  background: var(--panel);
+  border: 1.5px solid var(--line);
+  border-radius: 999px;
+  padding: 7px 12px;
+}
+
+.toc a:active { background: var(--ink); color: #fff; }
+
+section {
+  padding: 28px 0 8px;
+  border-top: 1.5px solid var(--line);
+  margin-top: 12px;
+}
+
+h2 {
+  font-size: 1.35rem;
+  letter-spacing: -0.02em;
+  margin-bottom: 14px;
+}
+
+.steps, .ensaio ol {
+  padding-left: 1.2em;
+  display: grid;
+  gap: 8px;
+}
+
+.steps li, .ensaio ol li { padding-left: 4px; }
+
+.ascii {
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 10px;
+  line-height: 1.35;
+  background: var(--screen);
+  color: var(--screen-ink);
+  padding: 16px 14px;
+  border-radius: var(--radius);
+  overflow-x: auto;
+  margin: 12px 0 16px;
+}
+
+.knob-grid {
+  display: grid;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+
+.knob-grid div {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  background: var(--panel);
+  border: 1.5px solid var(--line);
+  border-radius: var(--radius);
+  padding: 12px 14px;
+}
+
+.knob-grid strong {
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 11px;
+  letter-spacing: 0.14em;
+}
+
+.knob-grid span { color: var(--dim); font-size: 0.92rem; }
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.95rem;
+  margin: 8px 0 12px;
+}
+
+th, td {
+  text-align: left;
+  padding: 10px 8px;
+  border-bottom: 1px solid var(--line);
+  vertical-align: top;
+}
+
+th {
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  color: var(--dim);
+}
+
+.note {
+  background: #fff6;
+  border-left: 3px solid var(--cyan);
+  padding: 10px 12px;
+  border-radius: 0 var(--radius) var(--radius) 0;
+  font-size: 0.95rem;
+}
+
+.ensaio {
+  background: var(--panel);
+  border: 1.5px solid var(--line);
+  border-radius: var(--radius);
+  padding: 16px;
+  margin-bottom: 12px;
+}
+
+.ensaio header {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  margin-bottom: 10px;
+}
+
+.ensaio .n {
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--orange);
+  letter-spacing: 0.08em;
+  padding-top: 4px;
+}
+
+.ensaio h3 {
+  font-size: 1.15rem;
+  letter-spacing: -0.02em;
+  line-height: 1.2;
+}
+
+.meta {
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 11px;
+  color: var(--dim);
+  letter-spacing: 0.04em;
+  margin-top: 4px;
+}
+
+.ensaio > p { margin-bottom: 8px; }
+
+.tip {
+  margin-top: 10px;
+  font-size: 0.92rem;
+  color: var(--dim);
+  border-top: 1px dashed var(--line);
+  padding-top: 10px;
+}
+
+.recipes {
+  list-style: none;
+  display: grid;
+  gap: 10px;
+}
+
+.recipes li {
+  background: var(--panel);
+  border: 1.5px solid var(--line);
+  border-radius: var(--radius);
+  padding: 12px 14px;
+}
+
+.foot { padding-bottom: 24px; }
+.sign { color: var(--dim); margin: 10px 0 20px; font-style: italic; }
+.cta { display: inline-block; }
